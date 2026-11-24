@@ -316,11 +316,23 @@ void readBankDirect(bool bankTwo, uint16_t* dest) {
   Wire.write(bankTwo ? smux2 : smux1, 20);
   Wire.endTransmission();
 
+  // Trigger SMUXEN (0x10 | PON 0x01 = 0x11) and poll until bit 4 self-clears
   Wire.beginTransmission(AS7341_ADDR);
   Wire.write(0x80);
   Wire.write((uint8_t)0x11);
   Wire.endTransmission();
-  delayMicroseconds(300);
+
+  unsigned long smuxStart = millis();
+  while (millis() - smuxStart < 5) {
+    Wire.beginTransmission(AS7341_ADDR);
+    Wire.write(0x80);
+    Wire.endTransmission(false);
+    Wire.requestFrom((uint8_t)AS7341_ADDR, (uint8_t)1);
+    if (Wire.available() && ((Wire.read() & 0x10) == 0)) {
+      break;
+    }
+    delayMicroseconds(50);
+  }
 
   Wire.beginTransmission(AS7341_ADDR);
   Wire.write(0x80);
